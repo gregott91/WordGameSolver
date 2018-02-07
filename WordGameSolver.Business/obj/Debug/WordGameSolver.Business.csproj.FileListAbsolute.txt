@@ -1,0 +1,9 @@
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\bin\Debug\WordGameSolver.Business.dll
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\bin\Debug\WordGameSolver.Business.pdb
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\bin\Debug\WordGameSolver.Interfaces.dll
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\bin\Debug\WordGameSolver.Models.dll
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\bin\Debug\WordGameSolver.Interfaces.pdb
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\bin\Debug\WordGameSolver.Models.pdb
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\obj\Debug\WordGameSolver.Business.csprojResolveAssemblyReference.cache
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\obj\Debug\WordGameSolver.Business.dll
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver.Business\obj\Debug\WordGameSolver.Business.pdb
