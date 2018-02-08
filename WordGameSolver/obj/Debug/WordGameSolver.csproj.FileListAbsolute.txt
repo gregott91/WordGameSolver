@@ -1,1 +1,12 @@
 d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.exe.config
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.exe
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.pdb
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.Business.dll
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.Interfaces.dll
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.Models.dll
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.Business.pdb
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.Interfaces.pdb
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\bin\Debug\WordGameSolver.Models.pdb
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\obj\Debug\WordGameSolver.csprojResolveAssemblyReference.cache
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\obj\Debug\WordGameSolver.exe
+d:\documents\visual studio 2013\Projects\WordGameSolver\WordGameSolver\obj\Debug\WordGameSolver.pdb

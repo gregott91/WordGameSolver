@@ -51,6 +51,14 @@ namespace WordGameSolver.Business.Prediction
                 letterRackPermutations.Add(length, words);
             }
 
+            //List<PotentialTurn> rowTurns = await CalculateTurnsForCellListsAsync(board.Cells, rack, letterRackPermutations, progress);
+
+            //List<List<BoardCell>> columns = gameBoardLogic.GetColumnsFromRows(board);
+            //List<PotentialTurn> columnTurns = await CalculateTurnsForCellListsAsync(columns, rack, letterRackPermutations, progress);
+
+            //List<PotentialTurn> potentialTurns = rowTurns;
+            //potentialTurns.AddRange(columnTurns);
+
             Task<List<PotentialTurn>> rowTurns = CalculateTurnsForCellListsAsync(board.Cells, rack, letterRackPermutations, progress);
 
             List<List<BoardCell>> columns = gameBoardLogic.GetColumnsFromRows(board);
@@ -67,6 +75,11 @@ namespace WordGameSolver.Business.Prediction
             List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
             List<Task<List<PotentialTurn>>> calculateTasks = new List<Task<List<PotentialTurn>>>();
 
+            //foreach (var boardCellList in boardCellLists)
+            //{
+            //    potentialTurns.AddRange(await CalculateTurnsForCellsAsync(boardCellList, rack, letterRackPermutations, progress));
+            //}
+
             foreach (var boardCellList in boardCellLists)
             {
                 calculateTasks.Add(CalculateTurnsForCellsAsync(boardCellList, rack, letterRackPermutations, progress));
@@ -80,7 +93,7 @@ namespace WordGameSolver.Business.Prediction
             return potentialTurns;
         }
 
-        private List<List<BoardCell>> PartitionBoardCell(List<BoardCell> cells, int partitionSize)
+        private List<List<BoardCell>> PartitionBoardCells(List<BoardCell> cells, int partitionSize)
         {
             List<List<BoardCell>> partitions = new List<List<BoardCell>>();
 
@@ -99,7 +112,7 @@ namespace WordGameSolver.Business.Prediction
             bool hasFilledCell = false;
             int contiguousEmptyCells = 0;
             List<BoardCell> partition = new List<BoardCell>();
-            for (var cellIndex = 0; cellIndex < cells.Count(); cellIndex++)
+            for (var cellIndex = partitionStartIndex; cellIndex < cells.Count(); cellIndex++)
             {
                 BoardCell cell = cells[cellIndex];
                 if (cell.Letter == null)
@@ -109,6 +122,7 @@ namespace WordGameSolver.Business.Prediction
                 else
                 {
                     hasFilledCell = true;
+                    contiguousEmptyCells = 0;
                 }
 
                 if (contiguousEmptyCells > partitionSize)
@@ -162,47 +176,43 @@ namespace WordGameSolver.Business.Prediction
         /// <param name="rack"></param>
         /// <param name="checkedSpaces"></param>
         /// <returns></returns>
-        private Task<List<PotentialTurn>> CalculateTurnsForCellsAsync(List<BoardCell> cells, LetterRack rack, Dictionary<int, List<List<Letter>>> letterRackPermutations, ProgressReport progress)
+        private async Task<List<PotentialTurn>> CalculateTurnsForCellsAsync(List<BoardCell> cells, LetterRack rack, Dictionary<int, List<List<Letter>>> letterRackPermutations, ProgressReport progress)
         {
-            return Task.Run(() =>
+            List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
+            List<Task<List<PotentialTurn>>> turnTasks = new List<Task<List<PotentialTurn>>>();
+
+            // count the empty cells. The number of empty cells is the maximum amount of letters that can be placed down
+            int emptyCells = cells.Count(x => x.Letter == null);
+            int maxLength = Math.Min(emptyCells, rack.Letters.Count());
+
+            if (emptyCells == cells.Count())
             {
-                bool[] checkedSpaces = new bool[cells.Count()];
-
-                List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
-
-                // count the empty cells. The number of empty cells is the maximum amount of letters that can be placed down
-                int emptyCells = cells.Count(x => x.Letter == null);
-                int maxLength = Math.Min(emptyCells, rack.Letters.Count());
-
-                // find all the cells which are not empty and have an adjacent empty cell, then build words around those cells
-                for (var originalIndex = 0; originalIndex < cells.Count(); originalIndex++)
-                {
-                    BoardCell cell = cells[originalIndex];
-
-                    if (cell.Letter == null)
-                    {
-                        continue;
-                    }
-
-                    if (!HasAdjacentEmptySpace(cells, originalIndex))
-                    {
-                        // if the cell has a letter, mark it as checked
-                        progress.CellsChecked++;
-                        continue;
-                    }
-
-                    // generate the list of potential turns for each possible length of string
-                    for (var length = 1; length <= maxLength; length++)
-                    {
-                        List<List<Letter>> words = letterRackPermutations[length];
-                        potentialTurns.AddRange(CalculatePointsForWords(words, cells, checkedSpaces, originalIndex, progress));
-                    }
-
-                    progress.CellsChecked++;
-                }
-
                 return potentialTurns;
-            });
+            }
+
+            // generate the list of potential turns for each possible length of string
+            for (var length = 1; length <= maxLength; length++)
+            {
+                List<List<Letter>> words = letterRackPermutations[length];
+                List<List<BoardCell>> partitions = PartitionBoardCells(cells, length);
+
+                //foreach (var partition in partitions)
+                //{
+                //    potentialTurns.AddRange(await CalculatePointsForWordsAsync(words, partition, progress));
+                //}
+
+                foreach (var partition in partitions)
+                {
+                    turnTasks.Add(CalculatePointsForWordsAsync(words, partition, progress));
+                }
+            }
+
+            foreach (var turnTask in turnTasks)
+            {
+                potentialTurns.AddRange(await turnTask);
+            }
+
+            return potentialTurns;
         }
 
         /// <summary>
@@ -212,98 +222,69 @@ namespace WordGameSolver.Business.Prediction
         /// <param name="rack"></param>
         /// <param name="checkedSpaces"></param>
         /// <param name="wordLength"></param>
-        /// <param name="originalIndex"></param>
         /// <returns></returns>
-        private List<PotentialTurn> CalculatePointsForWords(List<List<Letter>> words, List<BoardCell> cells, bool[] checkedSpaces, int originalIndex, ProgressReport progress)
+        private Task<List<PotentialTurn>> CalculatePointsForWordsAsync(List<List<Letter>> words, List<BoardCell> cells, ProgressReport progress)
         {
-            bool[] newCheckedSpaces = new bool[checkedSpaces.Length];
-
-            List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
-
-            // gets the earliest cell that the words can be placed in
-            int wordLength = words[0].Count();
-            int startIndex = GetStartIndex(cells, originalIndex, wordLength);
-
-            // begin placing words in all possible cells around the index to check
-            for (var index = startIndex; index <= (originalIndex + 1); index++)
+            return Task.Run(() =>
             {
-                int usedLetters = 0;
-                int firstEmptySpaceIndex = -1;
-                int lastEmptySpaceIndex;
-                bool areAnyNotChecked = false;
+                List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
 
-                // check to see if there are enough empty spaces to fill in the given word
-                int checkIndex = index;
-                while (usedLetters < wordLength && checkIndex < cells.Count())
+                int wordLength = words[0].Count();
+
+                int startIndex = 0;
+                int endIndex = 0;
+                int emptyCells = 0;
+                foreach (var cell in cells)
                 {
-                    if (cells[checkIndex].Letter == null)
+                    if (cell.Letter == null)
                     {
-                        usedLetters++;
-
-                        if (firstEmptySpaceIndex == -1)
-                        {
-                            firstEmptySpaceIndex = checkIndex;
-                        }
-
-                        if (!checkedSpaces[checkIndex])
-                        {
-                            areAnyNotChecked = true;
-                        }
+                        emptyCells++;
                     }
 
-                    newCheckedSpaces[checkIndex] = true;
+                    if (emptyCells > wordLength)
+                    {
+                        endIndex--;
+                        break;
+                    }
 
-                    checkIndex++;
+                    endIndex++;
                 }
 
-                if (usedLetters < (wordLength - 1))
+                while (endIndex < cells.Count())
                 {
-                    break;
+                    potentialTurns.AddRange(CheckPermutations(words, cells, startIndex, endIndex, progress));
+
+                    startIndex = GetNextIndex(cells, startIndex);
+                    endIndex = GetNextIndex(cells, endIndex);
                 }
 
-                lastEmptySpaceIndex = checkIndex - 1;
-
-                if (!areAnyNotChecked)
-                {
-                    continue;
-                }
-
-                potentialTurns.AddRange(CheckPermutations(words, cells, firstEmptySpaceIndex, lastEmptySpaceIndex, progress));
-            }
-
-            // record all spaces which have been checked
-            for (var checkedSpaceIndex = 0; checkedSpaceIndex < newCheckedSpaces.Length; checkedSpaceIndex++)
-            {
-                checkedSpaces[checkedSpaceIndex] = checkedSpaces[checkedSpaceIndex] || newCheckedSpaces[checkedSpaceIndex];
-            }
-
-            return potentialTurns;
+                return potentialTurns;
+            });
         }
 
-        private List<PotentialTurn> CheckPermutations(IEnumerable<List<Letter>> permutations, List<BoardCell> cells, int firstEmptySpaceIndex, int lastEmptySpaceIndex, ProgressReport progress)
+        private int GetNextIndex(List<BoardCell> cells, int index)
+        {
+            if (cells[index].Letter == null)
+            {
+                return index + 1;
+            }
+
+            while (index < cells.Count())
+            {
+                if (cells[index].Letter == null)
+                {
+                    return index;
+                }
+
+                index++;
+            }
+
+            return index;
+        }
+
+        private List<PotentialTurn> CheckPermutations(IEnumerable<List<Letter>> permutations, List<BoardCell> cells, int startIndex, int endIndex, ProgressReport progress)
         {
             List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
-
-            int startIndex = 0;
-            int endIndex = cells.Count() - 1;
-
-            for (var index = firstEmptySpaceIndex - 1; index >= 0; index--)
-            {
-                if (cells[index].Letter == null)
-                {
-                    startIndex = index + 1;
-                    break;
-                }
-            }
-
-            for (var index = lastEmptySpaceIndex + 1; index < cells.Count(); index++)
-            {
-                if (cells[index].Letter == null)
-                {
-                    endIndex = index - 1;
-                    break;
-                }
-            }
 
             List<BoardCell> cellRange = cells.GetRange(startIndex, endIndex - startIndex + 1);
             Letter[] cellLetters = cellRange.Select(x => x.Letter).ToArray();
@@ -345,67 +326,6 @@ namespace WordGameSolver.Business.Prediction
             }
 
             return potentialTurns;
-        }
-
-        private bool HasAdjacentEmptySpace(List<BoardCell> cells, int index)
-        {
-            if (index == 0)
-            {
-                if (cells[1].Letter != null)
-                {
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-            }
-
-            if (index == (cells.Count() - 1))
-            {
-                if (cells[cells.Count() - 2].Letter != null)
-                {
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-            }
-
-            if (cells[index - 1].Letter == null || cells[index + 1].Letter == null)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private int GetStartIndex(List<BoardCell> cells, int startingLetterIndex, int length)
-        {
-            int startIndex = -1;
-
-            int emptySpaces = 0;
-            for (int i = (startingLetterIndex - 1); i >= 0; i--)
-            {
-                if (cells[i].Letter == null)
-                {
-                    emptySpaces++;
-                    startIndex = i;
-                }
-
-                if (emptySpaces == length)
-                {
-                    return startIndex;
-                }
-            }
-
-            if (startIndex == -1)
-            {
-                return startingLetterIndex;
-            }
-
-            return startIndex;
         }
     }
 }

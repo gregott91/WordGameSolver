@@ -17,13 +17,6 @@ namespace WordGameSolver.Business.Game
             return permutations;
         }
 
-        private List<List<Letter>> GenerateAllPossiblePermutations(List<Letter> characters, int length)
-        {
-            List<List<Letter>> permutations = Permutate(characters, length);
-
-            return permutations;
-        }
-
         private List<List<Letter>> Permutate(List<Letter> characters, int length)
         {
             if (length == 1)
