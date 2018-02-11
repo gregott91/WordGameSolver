@@ -17,5 +17,22 @@ namespace WordGameSolver.Models.Game
             Character = character;
             Value = value;
         }
+
+        public override bool Equals(object obj)
+        {
+            Letter comp = obj as Letter;
+
+            if (comp == null)
+            {
+                return false;
+            }
+
+            return comp.Character == Character;
+        }
+
+        public override int GetHashCode()
+        {
+            return Character.GetHashCode();
+        }
     }
 }

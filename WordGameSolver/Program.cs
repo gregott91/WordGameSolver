@@ -43,13 +43,13 @@ namespace WordGameSolver
 
             var chars = new List<Letter>()
             {
+                bag.First(x => x.Character == 'e'),
+                bag.First(x => x.Character == 'g'),
                 bag.First(x => x.Character == 't'),
-                bag.First(x => x.Character == 't'),
-                bag.First(x => x.Character == 'i'),
                 bag.First(x => x.Character == 'n'),
-                bag.First(x => x.Character == 'j'),
-                bag.First(x => x.Character == 'i'),
-                bag.First(x => x.Character == 'm')
+                bag.First(x => x.Character == 'e'),
+                bag.First(x => x.Character == 'f'),
+                bag.First(x => x.Character == 'n')
             };
 
             Stopwatch watch = new Stopwatch();
@@ -65,7 +65,7 @@ namespace WordGameSolver
 
             while (!turnTask.IsCompleted)
             {
-                //double percentDone = progress.CellsChecked / (double) progress.TotalCells * 100.0;
+                //double percentDone = progress.CellsChecked / (double)progress.TotalCells * 100.0;
                 //Console.WriteLine(string.Format("{0}% done, {1} words checked, {2}/{3} cells checked", percentDone, progress.WordsChecked, progress.CellsChecked, progress.TotalCells));
 
                 //Thread.Sleep(100);
@@ -74,9 +74,13 @@ namespace WordGameSolver
             var turns = turnTask.Result;
             watch.Stop();
 
-            turns = turns.Take(50).ToList();
+            Console.WriteLine("Discovered " + turns.Count() + " turns in " + watch.ElapsedMilliseconds + " ms.");
+
+            turns = turns.Take(10).ToList();
 
             int turnNum = 1;
+
+
 
             foreach (var turn in turns)
             {

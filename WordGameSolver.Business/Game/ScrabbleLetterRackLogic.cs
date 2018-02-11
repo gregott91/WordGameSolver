@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,9 +13,22 @@ namespace WordGameSolver.Business.Game
     {
         public List<List<Letter>> GenerateAllPossiblePermutations(LetterRack rack, int permutationLength)
         {
+            HashSet<string> usedWords = new HashSet<string>();
             List<List<Letter>> permutations = Permutate(rack.Letters, permutationLength);
+            List<List<Letter>> finalPermutations = new List<List<Letter>>();
 
-            return permutations;
+            foreach (var permutation in permutations)
+            {
+                string word = new string(permutation.Select(x => x.Character).ToArray());
+
+                if (!usedWords.Contains(word))
+                {
+                    finalPermutations.Add(permutation);
+                    usedWords.Add(word);
+                }
+            }
+
+            return finalPermutations;
         }
 
         private List<List<Letter>> Permutate(List<Letter> characters, int length)
@@ -47,7 +61,10 @@ namespace WordGameSolver.Business.Game
                     permutation.Insert(0, character);
                 }
 
-                permutations.AddRange(characterPermutations);
+                foreach (var characterPermutation in characterPermutations)
+                {
+                    permutations.Add(characterPermutation);
+                }
             }
 
             return permutations;
