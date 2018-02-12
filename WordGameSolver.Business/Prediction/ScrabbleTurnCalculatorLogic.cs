@@ -33,10 +33,10 @@ namespace WordGameSolver.Business.Prediction
         /// </summary>
         /// <param name="board"></param>
         /// <param name="rack"></param>
-        /// <returns></returns>
+        /// <returns>The list of potential turns</returns>
         public async Task<List<PotentialTurn>> CalculateTurnAsync(GameBoard board, LetterRack rack, ProgressReport progress)
         {
-            progress.TotalCells = CountTotalCells(board);
+            progress.TotalCells = CountTotalFilledCells(board);
             progress.CellsChecked = 0;
             progress.WordsChecked = 0;
             progress.IsProgressInitialized = true;
@@ -53,8 +53,8 @@ namespace WordGameSolver.Business.Prediction
 
             List<List<BoardCell>> columns = gameBoardLogic.GetColumnsFromRows(board);
 
-            Task<List<PotentialTurn>> rowTurns = CalculateTurnsForCellListsAsync(board.Cells, columns, rack, letterRackPermutations, progress);
-            Task<List<PotentialTurn>> columnTurns = CalculateTurnsForCellListsAsync(columns, board.Cells, rack, letterRackPermutations, progress);
+            Task<List<PotentialTurn>> rowTurns = CalculateTurnsForCellListsAsync(board.Cells, columns, letterRackPermutations, progress);
+            Task<List<PotentialTurn>> columnTurns = CalculateTurnsForCellListsAsync(columns, board.Cells, letterRackPermutations, progress);
 
             List<PotentialTurn> potentialTurns = await rowTurns;
             potentialTurns.AddRange(await columnTurns);
@@ -62,7 +62,15 @@ namespace WordGameSolver.Business.Prediction
             return potentialTurns.OrderByDescending(x => x.Points).ToList();
         }
 
-        private async Task<List<PotentialTurn>> CalculateTurnsForCellListsAsync(List<List<BoardCell>> boardCellLists, List<List<BoardCell>> perpendicularLists, LetterRack rack, Dictionary<int, List<List<Letter>>> letterRackPermutations, ProgressReport progress)
+        /// <summary>
+        /// Calculates all the possible turns for lists of cells
+        /// </summary>
+        /// <param name="boardCellLists">The list of cells</param>
+        /// <param name="perpendicularLists">The perpendicular lists. If the boardCellLists is a list of rows, this should be a list of columns</param>
+        /// <param name="letterRackPermutations">The list of all possible permutations from the letter rack</param>
+        /// <param name="progress"></param>
+        /// <returns>The list of potential turns</returns>
+        private async Task<List<PotentialTurn>> CalculateTurnsForCellListsAsync(List<List<BoardCell>> boardCellLists, List<List<BoardCell>> perpendicularLists, Dictionary<int, List<List<Letter>>> letterRackPermutations, ProgressReport progress)
         {
             List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
             List<Task<List<PotentialTurn>>> calculateTasks = new List<Task<List<PotentialTurn>>>();
@@ -70,7 +78,7 @@ namespace WordGameSolver.Business.Prediction
             int cellListIndex = 0;
             foreach (var boardCellList in boardCellLists)
             {
-                calculateTasks.Add(CalculateTurnsForCellsAsync(boardCellList, perpendicularLists, cellListIndex, rack, letterRackPermutations, progress));
+                calculateTasks.Add(CalculateTurnsForCellsAsync(boardCellList, perpendicularLists, cellListIndex, letterRackPermutations, progress));
                 cellListIndex++;
             }
 
@@ -82,63 +90,12 @@ namespace WordGameSolver.Business.Prediction
             return potentialTurns;
         }
 
-        private List<List<BoardCell>> PartitionBoardCell(List<BoardCell> cells, int partitionSize)
-        {
-            List<List<BoardCell>> partitions = new List<List<BoardCell>>();
-
-            int partitionStartIndex = 0;
-            foreach (var cell in cells)
-            {
-                if (cell.Letter != null)
-                {
-                    partitionStartIndex = Math.Max(partitionStartIndex - partitionSize, 0);
-                    break;
-                }
-
-                partitionStartIndex++;
-            }
-
-            bool hasFilledCell = false;
-            int contiguousEmptyCells = 0;
-            List<BoardCell> partition = new List<BoardCell>();
-            for (var cellIndex = 0; cellIndex < cells.Count(); cellIndex++)
-            {
-                BoardCell cell = cells[cellIndex];
-                if (cell.Letter == null)
-                {
-                    contiguousEmptyCells++;
-                }
-                else
-                {
-                    hasFilledCell = true;
-                }
-
-                if (contiguousEmptyCells > partitionSize)
-                {
-                    if (hasFilledCell)
-                    {
-                        partitions.Add(partition);
-                    }
-
-                    partition = new List<BoardCell>();
-                    contiguousEmptyCells = 1;
-                    hasFilledCell = false;
-                }
-                else
-                {
-                    partition.Add(cell);
-                }
-            }
-
-            if (hasFilledCell)
-            {
-                partitions.Add(partition);
-            }
-
-            return partitions;
-        }
-
-        private int CountTotalCells(GameBoard board)
+        /// <summary>
+        /// Counts the total filled cells on the board
+        /// </summary>
+        /// <param name="board">The game board</param>
+        /// <returns>The total filled cells</returns>
+        private int CountTotalFilledCells(GameBoard board)
         {
             int count = 0;
 
@@ -158,13 +115,15 @@ namespace WordGameSolver.Business.Prediction
         }
 
         /// <summary>
-        /// Calculates all potential turns for a list of cells
+        /// Calculates all potential turns for a list (row or column) of cells
         /// </summary>
-        /// <param name="cells"></param>
-        /// <param name="rack"></param>
-        /// <param name="checkedSpaces"></param>
-        /// <returns></returns>
-        private Task<List<PotentialTurn>> CalculateTurnsForCellsAsync(List<BoardCell> cells, List<List<BoardCell>> perpendicularLists, int perpendicularIndex, LetterRack rack, Dictionary<int, List<List<Letter>>> letterRackPermutations, ProgressReport progress)
+        /// <param name="cells">The row or column of cells</param>
+        /// <param name="perpendicularLists">The perpendicular rows or columns</param>
+        /// <param name="perpendicularIndex">If this is a row, this should be the row index. Vice versa for column</param>
+        /// <param name="letterRackPermutations">All possible permutations of the letter rack</param>
+        /// <param name="progress">The progress</param>
+        /// <returns>The list of potential turns</returns>
+        private Task<List<PotentialTurn>> CalculateTurnsForCellsAsync(List<BoardCell> cells, List<List<BoardCell>> perpendicularLists, int perpendicularIndex, Dictionary<int, List<List<Letter>>> letterRackPermutations, ProgressReport progress)
         {
             return Task.Run(() =>
             {
@@ -175,7 +134,7 @@ namespace WordGameSolver.Business.Prediction
 
                 // count the empty cells. The number of empty cells is the maximum amount of letters that can be placed down
                 int emptyCells = cells.Count(x => x.Letter == null);
-                int maxLength = Math.Min(emptyCells, rack.Letters.Count());
+                int maxLength = Math.Min(emptyCells, letterRackPermutations.Keys.Count());
 
                 // find all the cells which are not empty and have an adjacent empty cell, then build words around those cells
                 for (var originalIndex = 0; originalIndex < cells.Count(); originalIndex++)
@@ -209,21 +168,24 @@ namespace WordGameSolver.Business.Prediction
         }
 
         /// <summary>
-        /// Checks the points of all the permutations of a string for a given string length
+        /// Calculates all the possible words that can be made for the given cells and permutations
         /// </summary>
-        /// <param name="cells"></param>
-        /// <param name="rack"></param>
-        /// <param name="checkedSpaces"></param>
-        /// <param name="wordLength"></param>
-        /// <param name="originalIndex"></param>
-        /// <returns></returns>
+        /// <param name="permutations">The permutations to check</param>
+        /// <param name="cells">The cells to check</param>
+        /// <param name="perpendicularLists">The list of perpendicular cells</param>
+        /// <param name="perpendicularIndex">If checking a row, this should be the row index. Otherwise, it should be the column index.</param>
+        /// <param name="checkedSpaces">The list of checked spaces</param>
+        /// <param name="initialCellIndex">The initial cell that the word is being built around</param>
+        /// <param name="invalidCharsPerCell">The list of invalid characters per cell</param>
+        /// <param name="progress">The progress</param>
+        /// <returns>The list of potential turns</returns>
         private List<PotentialTurn> CalculatePointsForWords(
-            List<List<Letter>> words,
+            List<List<Letter>> permutations,
             List<BoardCell> cells,
             List<List<BoardCell>> perpendicularLists,
             int perpendicularIndex,
             bool[] checkedSpaces,
-            int originalIndex,
+            int initialCellIndex,
             HashSet<char>[] invalidCharsPerCell,
             ProgressReport progress)
         {
@@ -232,11 +194,11 @@ namespace WordGameSolver.Business.Prediction
             List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
 
             // gets the earliest cell that the words can be placed in
-            int wordLength = words[0].Count();
-            int startIndex = GetStartIndex(cells, originalIndex, wordLength);
+            int wordLength = permutations[0].Count();
+            int startIndex = GetStartIndex(cells, initialCellIndex, wordLength);
 
             // begin placing words in all possible cells around the index to check
-            for (var index = startIndex; index <= (originalIndex + 1); index++)
+            for (var index = startIndex; index <= (initialCellIndex + 1); index++)
             {
                 int usedLetters = 0;
                 int firstEmptySpaceIndex = -1;
@@ -269,6 +231,7 @@ namespace WordGameSolver.Business.Prediction
                     checkIndex++;
                 }
 
+                // if there's not enough empty spaces, keep moving
                 if (usedLetters < (wordLength - 1))
                 {
                     break;
@@ -276,12 +239,13 @@ namespace WordGameSolver.Business.Prediction
 
                 lastEmptySpaceIndex = checkIndex - 1;
 
+                // if all the spaces have already been checked, keep moving
                 if (!areAnyNotChecked)
                 {
                     continue;
                 }
 
-                potentialTurns.AddRange(CheckPermutations(words, cells, perpendicularLists, perpendicularIndex, firstEmptySpaceIndex, lastEmptySpaceIndex, emptyIndices, invalidCharsPerCell, progress));
+                potentialTurns.AddRange(CheckPermutations(permutations, cells, perpendicularLists, perpendicularIndex, firstEmptySpaceIndex, lastEmptySpaceIndex, emptyIndices, invalidCharsPerCell, progress));
             }
 
             // record all spaces which have been checked
@@ -293,34 +257,48 @@ namespace WordGameSolver.Business.Prediction
             return potentialTurns;
         }
 
+        /// <summary>
+        /// Checks all possible permutations for given list of empty cells
+        /// </summary>
+        /// <param name="permutations">The list of permutations to check</param>
+        /// <param name="cells">The row/column</param>
+        /// <param name="perpendicularLists">The list of perpendicular cells</param>
+        /// <param name="perpendicularIndex">If checking a row, this should be the row index. Otherwise, it should be the column index.</param>
+        /// <param name="emptyCellIndices">The list of empty cells to fill</param>
+        /// <param name="invalidCharsPerCell">The list of invalid characters</param>
+        /// <param name="progress">The progress</param>
+        /// <returns>The list of potential turns</returns>
         private List<PotentialTurn> CheckPermutations(
             IEnumerable<List<Letter>> permutations,
             List<BoardCell> cells,
             List<List<BoardCell>> perpendicularLists,
             int perpendicularIndex,
-            int firstEmptySpaceIndex,
-            int lastEmptySpaceIndex,
             List<int> emptyCellIndices,
             HashSet<char>[] invalidCharsPerCell,
             ProgressReport progress)
         {
             List<PotentialTurn> potentialTurns = new List<PotentialTurn>();
 
-            List<BoardCell> cellRange = GetCompleteWord(cells, firstEmptySpaceIndex, lastEmptySpaceIndex);
+            List<BoardCell> cellRange = GetCompleteWord(cells, emptyCellIndices[0], emptyCellIndices[emptyCellIndices.Count() - 1]);
             List<Letter> cellLetters = cellRange.Select(x => x.Letter).ToList();
 
+            // check each permutation
             foreach (List<Letter> permutation in permutations)
             {
-                int letterIndex = 0;
-                List<char> finalLetters = new List<char>();
+                int placedLetterIndex = 0;
                 bool isValid = true;
+                List<char> finalLetters = new List<char>();
+
+                // for each cell that is about to be filled in
                 for (var i = 0; i < cellLetters.Count(); i++)
                 {
+                    // if the letter is empty, place the first letter
                     if (cellLetters[i] == null)
                     {
-                        char character = permutation[letterIndex].Character;
-                        int emptyCellIndex = emptyCellIndices[letterIndex];
+                        char character = permutation[placedLetterIndex].Character;
+                        int emptyCellIndex = emptyCellIndices[placedLetterIndex];
 
+                        // check to see if the list of invalid characters contains this letter that's being placed
                         if (invalidCharsPerCell[emptyCellIndex] != null && invalidCharsPerCell[emptyCellIndex].Contains(character))
                         {
                             isValid = false;
@@ -328,7 +306,7 @@ namespace WordGameSolver.Business.Prediction
                         }
 
                         finalLetters.Add(character);
-                        letterIndex++;
+                        placedLetterIndex++;
                     }
                     else
                     {
@@ -343,6 +321,7 @@ namespace WordGameSolver.Business.Prediction
 
                 string word = new string(finalLetters.ToArray());
 
+                // check to see if the word is valid, and also if that any perpendicular cells are valid with the placed letters
                 if (dictionary.SearchWord(word) && DoesFitWithPerpendicularLists(permutation, emptyCellIndices, perpendicularLists, perpendicularIndex, invalidCharsPerCell))
                 {
                     progress.WordsChecked++;
@@ -354,6 +333,7 @@ namespace WordGameSolver.Business.Prediction
                         Letters = permutation
                     };
 
+                    // calculate the points
                     potentialTurn.Points = pointCalculatorLogic.CalculatePoints(potentialTurn);
 
                     potentialTurns.Add(potentialTurn);
@@ -363,6 +343,13 @@ namespace WordGameSolver.Business.Prediction
             return potentialTurns;
         }
 
+        /// <summary>
+        /// Searches the cells to find the first and last empty cell outside of the given indices
+        /// </summary>
+        /// <param name="cells">The list of cells</param>
+        /// <param name="startSearchIndex">The cell to start searching backward from</param>
+        /// <param name="lastSearchIndex">The cell to start searching forward from</param>
+        /// <returns></returns>
         private List<BoardCell> GetCompleteWord(List<BoardCell> cells, int startSearchIndex, int lastSearchIndex)
         {
             int startIndex = 0;
@@ -391,6 +378,15 @@ namespace WordGameSolver.Business.Prediction
             return cellRange;
         }
 
+        /// <summary>
+        /// Checks to see if the cell fits if the perpendicular lists
+        /// </summary>
+        /// <param name="letters">The letters to place</param>
+        /// <param name="indices">The indices the letters will be placed at</param>
+        /// <param name="perpendicularLists">The perpendicular lists</param>
+        /// <param name="perpendicularIndex">The row/column index the letters are being placed at</param>
+        /// <param name="invalidCharsPerCell">The list of invalid characters for each cell</param>
+        /// <returns>True if it fits, false otherwise</returns>
         private bool DoesFitWithPerpendicularLists(List<Letter> letters, List<int> indices, List<List<BoardCell>> perpendicularLists, int perpendicularIndex, HashSet<char>[] invalidCharsPerCell)
         {
             int index = 0;
@@ -400,8 +396,10 @@ namespace WordGameSolver.Business.Prediction
 
                 List<BoardCell> perpendicularList = perpendicularLists[emptyIndex];
 
+                // if there's no perpendicular cell that's filled, skip past it
                 if (HasAdjacentFilledSpace(perpendicularList, perpendicularIndex))
                 {
+                    // build the new word that was created with perpendicular cells
                     List<BoardCell> perpendicularCells = GetCompleteWord(perpendicularList, perpendicularIndex, perpendicularIndex);
                     char[] perpendicularLetters = perpendicularCells.Select(x => x.Letter != null ? x.Letter.Character : letter.Character).ToArray();
                     string perpendicularWord = new string(perpendicularLetters);
@@ -425,55 +423,86 @@ namespace WordGameSolver.Business.Prediction
             return true;
         }
 
+        /// <summary>
+        /// Checks to see if the cell has an adjacent empty space
+        /// </summary>
+        /// <param name="cells">The list of cells</param>
+        /// <param name="index">The index to check around</param>
+        /// <returns>True if it has an adjacent empty space, false otherwise</returns>
         private bool HasAdjacentEmptySpace(List<BoardCell> cells, int index)
         {
-            return HasAdjacentSpaceOfType(cells, index, true);
-        }
+            List<BoardCell> adjacentCells = GetAdjacentCells(cells, index);
 
-        private bool HasAdjacentFilledSpace(List<BoardCell> cells, int index)
-        {
-            return HasAdjacentSpaceOfType(cells, index, false);
-        }
-
-        private bool HasAdjacentSpaceOfType(List<BoardCell> cells, int index, bool hasEmpty)
-        {
-            if (index == 0)
+            foreach (BoardCell cell in adjacentCells)
             {
-                if (cells[1].Letter != null)
+                if (cell.Letter == null)
                 {
-                    return !hasEmpty;
+                    return true;
                 }
-                else
-                {
-                    return hasEmpty;
-                }
-            }
-
-            if (index == (cells.Count() - 1))
-            {
-                if (cells[cells.Count() - 2].Letter != null)
-                {
-                    return !hasEmpty;
-                }
-                else
-                {
-                    return hasEmpty;
-                }
-            }
-
-            if (hasEmpty && (cells[index - 1].Letter == null || cells[index + 1].Letter == null))
-            {
-                return true;
-            }
-
-            if (!hasEmpty && (cells[index - 1].Letter != null || cells[index + 1].Letter != null))
-            {
-                return true;
             }
 
             return false;
         }
 
+        /// <summary>
+        /// Checks to see if the cell has an adjacent filled space
+        /// </summary>
+        /// <param name="cells">The list of cells</param>
+        /// <param name="index">The index to check around</param>
+        /// <returns>True if it has an adjacent filled space, false otherwise</returns>
+        private bool HasAdjacentFilledSpace(List<BoardCell> cells, int index)
+        {
+            List<BoardCell> adjacentCells = GetAdjacentCells(cells, index);
+
+            foreach (BoardCell cell in adjacentCells)
+            {
+                if (cell.Letter != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the list of adjacent cells
+        /// </summary>
+        /// <param name="cells">The list of cells</param>
+        /// <param name="index">The index to check around</param>
+        /// <returns>The list of adjacent cells/returns>
+        private List<BoardCell> GetAdjacentCells(List<BoardCell> cells, int index)
+        {
+            if (index == 0)
+            {
+                return new List<BoardCell>()
+                {
+                    cells[1]
+                };
+            }
+
+            if (index == (cells.Count() - 1))
+            {
+                return new List<BoardCell>()
+                {
+                    cells[cells.Count() - 2]
+                };
+            }
+
+            return new List<BoardCell>()
+            {
+                cells[index - 1],
+                cells[index + 1]
+            };
+        }
+
+        /// <summary>
+        /// Gets the earliest cell words can be placed in
+        /// </summary>
+        /// <param name="cells">The list of cells</param>
+        /// <param name="startingLetterIndex">The index to start the search at</param>
+        /// <param name="length">The of word that will be placed</param>
+        /// <returns>The earliest starting index</returns>
         private int GetStartIndex(List<BoardCell> cells, int startingLetterIndex, int length)
         {
             int startIndex = -1;
