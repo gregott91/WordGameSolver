@@ -53,12 +53,11 @@ namespace WordGameSolver.Business.Prediction
 
             List<List<BoardCell>> columns = gameBoardLogic.GetColumnsFromRows(board);
 
-            // fix
-            List<PotentialTurn> rowTurns = await CalculateTurnsForCellListsAsync(board.Cells, columns, rack, letterRackPermutations, progress);
-            List<PotentialTurn> columnTurns = await CalculateTurnsForCellListsAsync(columns, board.Cells, rack, letterRackPermutations, progress);
+            Task<List<PotentialTurn>> rowTurns = CalculateTurnsForCellListsAsync(board.Cells, columns, rack, letterRackPermutations, progress);
+            Task<List<PotentialTurn>> columnTurns = CalculateTurnsForCellListsAsync(columns, board.Cells, rack, letterRackPermutations, progress);
 
-            List<PotentialTurn> potentialTurns = rowTurns;
-            potentialTurns.AddRange(columnTurns);
+            List<PotentialTurn> potentialTurns = await rowTurns;
+            potentialTurns.AddRange(await columnTurns);
 
             return potentialTurns.OrderByDescending(x => x.Points).ToList();
         }
@@ -71,14 +70,14 @@ namespace WordGameSolver.Business.Prediction
             int cellListIndex = 0;
             foreach (var boardCellList in boardCellLists)
             {
-                potentialTurns.AddRange(await CalculateTurnsForCellsAsync(boardCellList, perpendicularLists, cellListIndex, rack, letterRackPermutations, progress));
+                calculateTasks.Add(CalculateTurnsForCellsAsync(boardCellList, perpendicularLists, cellListIndex, rack, letterRackPermutations, progress));
                 cellListIndex++;
             }
 
-            //foreach (Task<List<PotentialTurn>> task in calculateTasks)
-            //{
-            //    potentialTurns.AddRange(await task);
-            //}
+            foreach (Task<List<PotentialTurn>> task in calculateTasks)
+            {
+                potentialTurns.AddRange(await task);
+            }
 
             return potentialTurns;
         }
@@ -401,7 +400,7 @@ namespace WordGameSolver.Business.Prediction
 
                 List<BoardCell> perpendicularList = perpendicularLists[emptyIndex];
 
-                if (HasAdjacentFilledSpace(perpendicularList, emptyIndex))
+                if (HasAdjacentFilledSpace(perpendicularList, perpendicularIndex))
                 {
                     List<BoardCell> perpendicularCells = GetCompleteWord(perpendicularList, perpendicularIndex, perpendicularIndex);
                     char[] perpendicularLetters = perpendicularCells.Select(x => x.Letter != null ? x.Letter.Character : letter.Character).ToArray();

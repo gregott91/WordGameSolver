@@ -43,13 +43,13 @@ namespace WordGameSolver
 
             var chars = new List<Letter>()
             {
-                bag.First(x => x.Character == 'e'),
+                bag.First(x => x.Character == 'u'),
                 bag.First(x => x.Character == 'g'),
-                bag.First(x => x.Character == 't'),
-                bag.First(x => x.Character == 'n'),
-                bag.First(x => x.Character == 'e'),
-                bag.First(x => x.Character == 'f'),
-                bag.First(x => x.Character == 'n')
+                bag.First(x => x.Character == 'y'),
+                bag.First(x => x.Character == 'g'),
+                bag.First(x => x.Character == 'r'),
+                bag.First(x => x.Character == 'l'),
+                bag.First(x => x.Character == 'u')
             };
 
             Stopwatch watch = new Stopwatch();
